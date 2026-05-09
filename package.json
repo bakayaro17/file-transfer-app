@@ -1,6 +1,6 @@
 {
   "name": "file-transfer-app",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Cross-platform peer-to-peer file transfer built with Electron and PeerJS",
   "main": "main.js",
   "repository": {
@@ -78,10 +78,22 @@
             "x64",
             "arm64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "icon.png",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
     "linux": {
       "target": [
