@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Easy File Transfer</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        .id-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+        #my-id {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #0056b3;
+            cursor: pointer;
+        }
+        .connect-section {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex: 1;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .dropzone {
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 40px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            transition: background 0.3s;
+        }
+        .dropzone.dragover {
+            background: #e2e6ea;
+            border-color: #28a745;
+        }
+        .files-section {
+            text-align: left;
+            margin-top: 20px;
+        }
+        .file-item {
+            padding: 10px;
+            background: #e9ecef;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+        }
+        .status {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Easy File Transfer</h1>
+        
+        <div class="id-section">
+            <div>Your Device ID:</div>
+            <div id="my-id">Connecting...</div>
+        </div>
+
+        <div class="connect-section">
+            <input type="text" id="target-id" placeholder="Enter other device ID">
+            <button id="connect-btn">Connect</button>
+        </div>
+        
+        <div id="status" class="status">Waiting for connection...</div>
+
+        <div id="dropzone" class="dropzone" style="display: none;">
+            <h3>Drop Files Here to Send</h3>
+            <p>Connected to: <span id="connected-id"></span></p>
+        </div>
+
+        <div class="files-section" id="files-section" style="display: none;">
+            <h3>Received Files</h3>
+            <p style="font-size: 0.8em; color: #666;">Drag files from below to your desktop</p>
+            <div id="file-list"></div>
+        </div>
+    </div>
+    
+    <!-- We need to load peerjs -->
+    <script src="node_modules/peerjs/dist/peerjs.min.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>
