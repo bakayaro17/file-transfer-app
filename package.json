@@ -10,10 +10,9 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "release": "electron-builder -wml --publish always",
+    "release": "electron-builder -wm --publish always",
     "release:win": "electron-builder --win --publish always",
-    "release:mac": "electron-builder --mac --publish always",
-    "release:linux": "electron-builder --linux --publish always"
+    "release:mac": "electron-builder --mac --publish always"
   },
   "keywords": [],
   "author": "",
@@ -95,23 +94,5 @@
       "entitlementsInherit": "build/entitlements.mac.plist",
       "notarize": true
     },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "icon.png",
-      "category": "Utility"
-    }
   }
 }
