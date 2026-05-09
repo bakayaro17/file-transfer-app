@@ -1,4 +1,5 @@
 const myIdElement = document.getElementById('my-id');
+const copyBtn = document.getElementById('copy-btn');
 const targetIdInput = document.getElementById('target-id');
 const connectBtn = document.getElementById('connect-btn');
 const statusElement = document.getElementById('status');
@@ -10,32 +11,52 @@ const fileList = document.getElementById('file-list');
 let peer = null;
 let conn = null;
 
-// Initialize PeerJS
+function generateCode() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+}
+
 function initPeer() {
-    peer = new Peer();
+    if (peer) {
+        try { peer.destroy(); } catch (_) {}
+    }
+    myIdElement.textContent = '...';
+    const code = generateCode();
+    peer = new Peer(code);
 
     peer.on('open', (id) => {
         myIdElement.textContent = id;
-        statusElement.textContent = 'Ready to connect or receive connections.';
+        statusElement.textContent = 'Share your code, or enter another to connect.';
     });
 
-    peer.on('connection', (c) => {
-        // Disconnect existing if any
+    peer.on('connection', (incoming) => {
+        const accept = confirm(`Accept incoming connection from ${incoming.peer}?`);
+        if (!accept) {
+            incoming.close();
+            return;
+        }
         if (conn && conn.open) {
             conn.close();
         }
-        conn = c;
+        conn = incoming;
         setupConnection();
     });
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
+        if (err.type === 'unavailable-id') {
+            setTimeout(initPeer, 200);
+            return;
+        }
         statusElement.textContent = `Error: ${err.type}`;
         connectBtn.disabled = false;
     });
 }
 
-// Setup connection handlers
 function setupConnection() {
     conn.on('open', () => {
         statusElement.textContent = 'Connected!';
@@ -58,29 +79,37 @@ function setupConnection() {
     });
 }
 
-// Connect to another peer
 connectBtn.addEventListener('click', () => {
-    const targetId = targetIdInput.value.trim();
+    const targetId = targetIdInput.value.trim().toUpperCase();
     if (!targetId) return;
+    targetIdInput.value = targetId;
 
     connectBtn.disabled = true;
     statusElement.textContent = 'Connecting...';
-    
+
     conn = peer.connect(targetId);
     setupConnection();
 });
 
-// Click ID to copy
-myIdElement.addEventListener('click', () => {
-    navigator.clipboard.writeText(myIdElement.textContent);
-    const originalText = myIdElement.textContent;
-    myIdElement.textContent = 'Copied!';
-    setTimeout(() => {
-        myIdElement.textContent = originalText;
-    }, 1000);
+targetIdInput.addEventListener('input', () => {
+    targetIdInput.value = targetIdInput.value.toUpperCase();
 });
 
-// Drag and Drop (Sending)
+targetIdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') connectBtn.click();
+});
+
+copyBtn.addEventListener('click', async () => {
+    const code = myIdElement.textContent;
+    if (!code || code === '...') return;
+    await navigator.clipboard.writeText(code);
+    const orig = copyBtn.textContent;
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = orig; }, 1200);
+});
+
+myIdElement.addEventListener('click', () => copyBtn.click());
+
 dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -112,32 +141,27 @@ dropzone.addEventListener('drop', async (e) => {
 async function sendFile(file) {
     statusElement.textContent = `Sending ${file.name}...`;
     try {
-        const fileData = await window.electronAPI.readFile(file.path);
-        if (fileData) {
-            conn.send({
-                type: 'file',
-                file: {
-                    name: file.name,
-                    data: fileData
-                }
-            });
-            statusElement.textContent = `Sent ${file.name}`;
-        } else {
-            statusElement.textContent = `Failed to read ${file.name}`;
-        }
+        const arrayBuffer = await file.arrayBuffer();
+        conn.send({
+            type: 'file',
+            file: {
+                name: file.name,
+                data: arrayBuffer
+            }
+        });
+        statusElement.textContent = `Sent ${file.name}`;
     } catch (err) {
         console.error('Send error', err);
         statusElement.textContent = `Error sending ${file.name}`;
     }
 }
 
-// Handle Incoming File
 async function handleIncomingFile(file) {
     try {
         const tempPath = await window.electronAPI.saveTempFile(file.name, file.data);
-        
+
         filesSection.style.display = 'block';
-        
+
         const fileDiv = document.createElement('div');
         fileDiv.className = 'file-item';
         fileDiv.draggable = true;
@@ -145,7 +169,7 @@ async function handleIncomingFile(file) {
             <span>📄 ${file.name}</span>
             <span style="color: #888; font-size: 0.8em;">(Drag me out)</span>
         `;
-        
+
         fileDiv.addEventListener('dragstart', (e) => {
             e.preventDefault();
             window.electronAPI.startDrag(tempPath);
@@ -159,5 +183,4 @@ async function handleIncomingFile(file) {
     }
 }
 
-// Start
 initPeer();

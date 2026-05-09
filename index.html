@@ -27,15 +27,46 @@
         }
         .id-section {
             margin-bottom: 20px;
-            padding: 10px;
+            padding: 16px;
             background: #e9ecef;
-            border-radius: 4px;
+            border-radius: 8px;
+        }
+        .id-label {
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .id-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 6px;
         }
         #my-id {
+            font-family: 'Consolas', 'Menlo', monospace;
             font-weight: bold;
-            font-size: 1.2em;
+            font-size: 2em;
+            letter-spacing: 0.15em;
             color: #0056b3;
             cursor: pointer;
+            padding: 6px 14px;
+            background: white;
+            border-radius: 6px;
+            user-select: all;
+        }
+        .copy-btn {
+            background-color: #28a745;
+            font-size: 0.95em;
+        }
+        .copy-btn:hover {
+            background-color: #1e7e34;
+        }
+        .id-hint {
+            font-size: 0.8em;
+            color: #888;
         }
         .connect-section {
             margin-bottom: 20px;
@@ -102,12 +133,16 @@
         <h1>Easy File Transfer</h1>
         
         <div class="id-section">
-            <div>Your Device ID:</div>
-            <div id="my-id">Connecting...</div>
+            <div class="id-label">Your code</div>
+            <div class="id-row">
+                <span id="my-id">...</span>
+                <button id="copy-btn" class="copy-btn">Copy</button>
+            </div>
+            <div class="id-hint">Share this code with the other device</div>
         </div>
 
         <div class="connect-section">
-            <input type="text" id="target-id" placeholder="Enter other device ID">
+            <input type="text" id="target-id" placeholder="Enter their code (e.g. K7M9PQ)" maxlength="6">
             <button id="connect-btn">Connect</button>
         </div>
         

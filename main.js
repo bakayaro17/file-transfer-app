@@ -42,13 +42,3 @@ ipcMain.handle('save-temp-file', async (event, fileName, fileData) => {
   fs.writeFileSync(filePath, Buffer.from(fileData));
   return filePath;
 });
-
-ipcMain.handle('read-file', async (event, filePath) => {
-  try {
-    const data = fs.readFileSync(filePath);
-    return data;
-  } catch (err) {
-    console.error('Error reading file:', err);
-    return null;
-  }
-});
