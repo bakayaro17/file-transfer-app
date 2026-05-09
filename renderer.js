@@ -274,10 +274,22 @@ async function handleIncomingFile(file) {
 minimizeBtn.addEventListener('click', () => window.electronAPI.minimizeWindow());
 closeBtn.addEventListener('click', () => window.electronAPI.closeWindow());
 
-// Version display
+// Version display + click to check for updates
 window.electronAPI.getVersion().then((v) => {
     versionEl.textContent = `v${v}`;
 }).catch(() => {});
+
+let manualUpdateCheck = false;
+versionEl.addEventListener('click', async () => {
+    const result = await window.electronAPI.checkForUpdates();
+    if (!result?.ok) {
+        if (result?.reason === 'dev') showToast('Updates only check in installed builds');
+        else if (result?.reason === 'portable') showToast('Auto-update is disabled for the portable build');
+        else showToast(`Update check failed${result?.message ? `: ${result.message}` : ''}`);
+        return;
+    }
+    manualUpdateCheck = true;
+});
 
 // Deep link handling
 if (window.electronAPI?.onDeepLink) {
@@ -302,19 +314,27 @@ if (window.electronAPI?.onUpdateStatus) {
                 const ver = status.version ? ` v${status.version}` : '';
                 updateText.textContent = `Downloading update${ver}${pct}...`;
                 updateBanner.classList.add('visible');
+                manualUpdateCheck = false;
                 break;
             }
             case 'ready':
                 updateText.textContent = `Update v${status.version} ready.`;
                 updateInstallBtn.style.display = 'inline-block';
                 updateBanner.classList.add('visible', 'ready');
+                manualUpdateCheck = false;
                 break;
             case 'error':
                 updateText.textContent = `Update error: ${status.message}`;
                 updateBanner.classList.add('visible', 'error');
                 setTimeout(() => updateBanner.classList.remove('visible'), 6000);
+                manualUpdateCheck = false;
                 break;
             case 'none':
+                if (manualUpdateCheck) {
+                    showToast("You're on the latest version");
+                    manualUpdateCheck = false;
+                }
+                break;
             default:
                 break;
         }

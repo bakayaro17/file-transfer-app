@@ -139,6 +139,17 @@ ipcMain.handle('open-external', async (_event, url) => {
   return true;
 });
 
+ipcMain.handle('check-for-updates', async () => {
+  if (!app.isPackaged) return { ok: false, reason: 'dev' };
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return { ok: false, reason: 'portable' };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: 'error', message: err?.message || String(err) };
+  }
+});
+
 ipcMain.on('ondragstart', (event, filePath) => {
   event.sender.startDrag({
     file: filePath,
