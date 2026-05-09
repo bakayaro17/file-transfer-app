@@ -1,15 +1,61 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 
-let mainWindow;
+const PROTOCOL = 'filetransfer';
 
-function createWindow () {
+let mainWindow;
+let pendingDeepLink = null;
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
+app.on('second-instance', (_event, argv) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+  const link = extractDeepLink(argv);
+  if (link) sendDeepLinkToRenderer(link);
+});
+
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL);
+}
+
+function extractDeepLink(argv) {
+  if (!argv) return null;
+  const arg = argv.find((a) => typeof a === 'string' && a.toLowerCase().startsWith(`${PROTOCOL}://`));
+  if (!arg) return null;
+  const match = arg.match(new RegExp(`^${PROTOCOL}://(?:connect/)?([A-Z0-9]+)/?`, 'i'));
+  return match ? match[1].toUpperCase() : null;
+}
+
+function sendDeepLinkToRenderer(code) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    pendingDeepLink = code;
+    return;
+  }
+  mainWindow.webContents.send('deep-link', code);
+}
+
+function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 500,
+    height: 720,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    frame: false,
+    backgroundColor: '#0f172a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -18,11 +64,25 @@ function createWindow () {
   });
 
   mainWindow.loadFile('index.html');
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    const fromArgs = extractDeepLink(process.argv);
+    const link = fromArgs || pendingDeepLink;
+    if (link) {
+      mainWindow.webContents.send('deep-link', link);
+      pendingDeepLink = null;
+    }
+  });
 }
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  const code = extractDeepLink([url]);
+  if (code) sendDeepLinkToRenderer(code);
+});
 
 function setupAutoUpdater() {
   if (!app.isPackaged) return;
-  // Portable builds aren't supported by electron-updater
   if (process.env.PORTABLE_EXECUTABLE_FILE) return;
 
   autoUpdater.autoDownload = true;
@@ -61,6 +121,16 @@ app.whenReady().then(() => {
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
+
+ipcMain.on('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-close', () => {
+  if (mainWindow) mainWindow.close();
+});
+
+ipcMain.handle('get-version', () => app.getVersion());
 
 ipcMain.on('ondragstart', (event, filePath) => {
   event.sender.startDrag({

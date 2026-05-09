@@ -1,15 +1,38 @@
 const myIdElement = document.getElementById('my-id');
 const copyBtn = document.getElementById('copy-btn');
+const shareBtn = document.getElementById('share-btn');
 const targetIdInput = document.getElementById('target-id');
 const connectBtn = document.getElementById('connect-btn');
 const statusElement = document.getElementById('status');
+const statusPill = document.getElementById('status-pill');
 const dropzone = document.getElementById('dropzone');
 const connectedIdElement = document.getElementById('connected-id');
 const filesSection = document.getElementById('files-section');
 const fileList = document.getElementById('file-list');
+const versionEl = document.getElementById('app-version');
+const minimizeBtn = document.getElementById('btn-minimize');
+const closeBtn = document.getElementById('btn-close');
+const toast = document.getElementById('toast');
+const updateBanner = document.getElementById('update-banner');
+const updateText = document.getElementById('update-text');
+const updateInstallBtn = document.getElementById('update-install-btn');
 
 let peer = null;
 let conn = null;
+let pendingDeepLinkCode = null;
+
+function showToast(msg, ms = 1500) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), ms);
+}
+
+function setStatus(text, kind = 'ready') {
+    statusElement.textContent = text;
+    statusPill.classList.remove('ready', 'connected', 'error');
+    statusPill.classList.add(kind);
+}
 
 function generateCode() {
     const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -24,13 +47,18 @@ function initPeer() {
     if (peer) {
         try { peer.destroy(); } catch (_) {}
     }
-    myIdElement.textContent = '...';
+    myIdElement.textContent = '......';
     const code = generateCode();
     peer = new Peer(code);
 
     peer.on('open', (id) => {
         myIdElement.textContent = id;
-        statusElement.textContent = 'Share your code, or enter another to connect.';
+        setStatus('Ready to connect', 'ready');
+        if (pendingDeepLinkCode) {
+            const code = pendingDeepLinkCode;
+            pendingDeepLinkCode = null;
+            connectToCode(code);
+        }
     });
 
     peer.on('connection', (incoming) => {
@@ -39,9 +67,7 @@ function initPeer() {
             incoming.close();
             return;
         }
-        if (conn && conn.open) {
-            conn.close();
-        }
+        if (conn && conn.open) conn.close();
         conn = incoming;
         setupConnection();
     });
@@ -52,60 +78,69 @@ function initPeer() {
             setTimeout(initPeer, 200);
             return;
         }
-        statusElement.textContent = `Error: ${err.type}`;
+        setStatus(`Error: ${err.type}`, 'error');
         connectBtn.disabled = false;
     });
 }
 
 function setupConnection() {
     conn.on('open', () => {
-        statusElement.textContent = 'Connected!';
+        setStatus('Connected', 'connected');
         dropzone.style.display = 'block';
         connectedIdElement.textContent = conn.peer;
         connectBtn.disabled = true;
     });
 
     conn.on('data', async (data) => {
-        if (data.type === 'file') {
-            handleIncomingFile(data.file);
-        }
+        if (data.type === 'file') handleIncomingFile(data.file);
     });
 
     conn.on('close', () => {
-        statusElement.textContent = 'Connection closed.';
+        setStatus('Connection closed', 'ready');
         dropzone.style.display = 'none';
         connectBtn.disabled = false;
         conn = null;
     });
 }
 
-connectBtn.addEventListener('click', () => {
-    const targetId = targetIdInput.value.trim().toUpperCase();
+function connectToCode(targetId) {
+    targetId = (targetId || '').trim().toUpperCase();
     if (!targetId) return;
     targetIdInput.value = targetId;
 
+    if (!peer || !peer.open) {
+        pendingDeepLinkCode = targetId;
+        return;
+    }
     connectBtn.disabled = true;
-    statusElement.textContent = 'Connecting...';
+    setStatus('Connecting...', 'ready');
 
     conn = peer.connect(targetId);
     setupConnection();
-});
+}
+
+connectBtn.addEventListener('click', () => connectToCode(targetIdInput.value));
 
 targetIdInput.addEventListener('input', () => {
     targetIdInput.value = targetIdInput.value.toUpperCase();
 });
-
 targetIdInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') connectBtn.click();
 });
 
 copyBtn.addEventListener('click', async () => {
     const code = myIdElement.textContent;
-    if (!code || code === '...') return;
+    if (!code || code.startsWith('.')) return;
     await navigator.clipboard.writeText(code);
-    const orig = copyBtn.textContent;
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => { copyBtn.textContent = orig; }, 1200);
+    showToast('Code copied');
+});
+
+shareBtn.addEventListener('click', async () => {
+    const code = myIdElement.textContent;
+    if (!code || code.startsWith('.')) return;
+    const url = `filetransfer://connect/${code}`;
+    await navigator.clipboard.writeText(url);
+    showToast('Share link copied');
 });
 
 myIdElement.addEventListener('click', () => copyBtn.click());
@@ -115,44 +150,34 @@ dropzone.addEventListener('dragover', (e) => {
     e.stopPropagation();
     dropzone.classList.add('dragover');
 });
-
 dropzone.addEventListener('dragleave', (e) => {
     e.preventDefault();
     e.stopPropagation();
     dropzone.classList.remove('dragover');
 });
-
 dropzone.addEventListener('drop', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     dropzone.classList.remove('dragover');
-
     if (!conn || !conn.open) {
-        alert('Not connected to anyone!');
+        showToast('Not connected');
         return;
     }
-
-    const files = e.dataTransfer.files;
-    for (const f of files) {
-        sendFile(f);
-    }
+    for (const f of e.dataTransfer.files) sendFile(f);
 });
 
 async function sendFile(file) {
-    statusElement.textContent = `Sending ${file.name}...`;
+    setStatus(`Sending ${file.name}...`, 'connected');
     try {
         const arrayBuffer = await file.arrayBuffer();
         conn.send({
             type: 'file',
-            file: {
-                name: file.name,
-                data: arrayBuffer
-            }
+            file: { name: file.name, data: arrayBuffer }
         });
-        statusElement.textContent = `Sent ${file.name}`;
+        setStatus(`Sent ${file.name}`, 'connected');
     } catch (err) {
         console.error('Send error', err);
-        statusElement.textContent = `Error sending ${file.name}`;
+        setStatus(`Error sending ${file.name}`, 'error');
     }
 }
 
@@ -166,29 +191,38 @@ async function handleIncomingFile(file) {
         fileDiv.className = 'file-item';
         fileDiv.draggable = true;
         fileDiv.innerHTML = `
-            <span>📄 ${file.name}</span>
-            <span style="color: #888; font-size: 0.8em;">(Drag me out)</span>
+            <span class="name">📄 ${file.name}</span>
+            <span class="hint">drag out</span>
         `;
-
         fileDiv.addEventListener('dragstart', (e) => {
             e.preventDefault();
             window.electronAPI.startDrag(tempPath);
         });
-
         fileList.appendChild(fileDiv);
-        statusElement.textContent = `Received ${file.name}`;
+        setStatus(`Received ${file.name}`, 'connected');
     } catch (err) {
         console.error('Receive error', err);
-        statusElement.textContent = `Error saving ${file.name}`;
+        setStatus(`Error saving ${file.name}`, 'error');
     }
 }
 
-initPeer();
+// Window controls
+minimizeBtn.addEventListener('click', () => window.electronAPI.minimizeWindow());
+closeBtn.addEventListener('click', () => window.electronAPI.closeWindow());
 
-const updateBanner = document.getElementById('update-banner');
-const updateText = document.getElementById('update-text');
-const updateInstallBtn = document.getElementById('update-install-btn');
+// Version display
+window.electronAPI.getVersion().then((v) => {
+    versionEl.textContent = `v${v}`;
+}).catch(() => {});
 
+// Deep link handling
+if (window.electronAPI?.onDeepLink) {
+    window.electronAPI.onDeepLink((code) => {
+        connectToCode(code);
+    });
+}
+
+// Auto-update status banner
 if (window.electronAPI?.onUpdateStatus) {
     window.electronAPI.onUpdateStatus((status) => {
         updateBanner.classList.remove('visible', 'ready', 'error');
@@ -218,7 +252,6 @@ if (window.electronAPI?.onUpdateStatus) {
                 break;
             case 'none':
             default:
-                // Hide silently when no update is available
                 break;
         }
     });
@@ -227,3 +260,5 @@ if (window.electronAPI?.onUpdateStatus) {
 updateInstallBtn?.addEventListener('click', () => {
     window.electronAPI.installUpdate();
 });
+
+initPeer();

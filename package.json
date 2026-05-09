@@ -1,6 +1,6 @@
 {
   "name": "file-transfer-app",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Cross-platform peer-to-peer file transfer built with Electron and PeerJS",
   "main": "main.js",
   "repository": {
@@ -45,6 +45,14 @@
       "repo": "file-transfer-app",
       "releaseType": "draft"
     },
+    "protocols": [
+      {
+        "name": "File Transfer",
+        "schemes": [
+          "filetransfer"
+        ]
+      }
+    ],
     "win": {
       "target": [
         {
