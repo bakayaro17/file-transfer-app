@@ -184,3 +184,46 @@ async function handleIncomingFile(file) {
 }
 
 initPeer();
+
+const updateBanner = document.getElementById('update-banner');
+const updateText = document.getElementById('update-text');
+const updateInstallBtn = document.getElementById('update-install-btn');
+
+if (window.electronAPI?.onUpdateStatus) {
+    window.electronAPI.onUpdateStatus((status) => {
+        updateBanner.classList.remove('visible', 'ready', 'error');
+        updateInstallBtn.style.display = 'none';
+
+        switch (status.state) {
+            case 'checking':
+                updateText.textContent = 'Checking for updates...';
+                updateBanner.classList.add('visible');
+                break;
+            case 'downloading': {
+                const pct = typeof status.percent === 'number' ? ` (${status.percent}%)` : '';
+                const ver = status.version ? ` v${status.version}` : '';
+                updateText.textContent = `Downloading update${ver}${pct}...`;
+                updateBanner.classList.add('visible');
+                break;
+            }
+            case 'ready':
+                updateText.textContent = `Update v${status.version} ready.`;
+                updateInstallBtn.style.display = 'inline-block';
+                updateBanner.classList.add('visible', 'ready');
+                break;
+            case 'error':
+                updateText.textContent = `Update error: ${status.message}`;
+                updateBanner.classList.add('visible', 'error');
+                setTimeout(() => updateBanner.classList.remove('visible'), 6000);
+                break;
+            case 'none':
+            default:
+                // Hide silently when no update is available
+                break;
+        }
+    });
+}
+
+updateInstallBtn?.addEventListener('click', () => {
+    window.electronAPI.installUpdate();
+});

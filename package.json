@@ -1,15 +1,19 @@
 {
   "name": "file-transfer-app",
-  "version": "1.0.1",
-  "description": "",
+  "version": "1.0.2",
+  "description": "Cross-platform peer-to-peer file transfer built with Electron and PeerJS",
   "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bakayaro17/file-transfer-app.git"
+  },
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "release": "electron-builder -wml",
-    "release:win": "electron-builder --win",
-    "release:mac": "electron-builder --mac",
-    "release:linux": "electron-builder --linux"
+    "release": "electron-builder -wml --publish always",
+    "release:win": "electron-builder --win --publish always",
+    "release:mac": "electron-builder --mac --publish always",
+    "release:linux": "electron-builder --linux --publish always"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +23,7 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "peerjs": "^1.5.5"
   },
   "build": {
@@ -34,7 +39,12 @@
     "directories": {
       "output": "dist"
     },
-    "publish": null,
+    "publish": {
+      "provider": "github",
+      "owner": "bakayaro17",
+      "repo": "file-transfer-app",
+      "releaseType": "draft"
+    },
     "win": {
       "target": [
         {
