@@ -132,6 +132,13 @@ ipcMain.on('window-close', () => {
 
 ipcMain.handle('get-version', () => app.getVersion());
 
+ipcMain.handle('open-external', async (_event, url) => {
+  if (typeof url !== 'string') return false;
+  if (!/^https?:\/\//i.test(url)) return false;
+  await shell.openExternal(url);
+  return true;
+});
+
 ipcMain.on('ondragstart', (event, filePath) => {
   event.sender.startDrag({
     file: filePath,

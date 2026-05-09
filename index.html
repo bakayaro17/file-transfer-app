@@ -313,6 +313,20 @@
             letter-spacing: 0.1em;
         }
 
+        /* ===== Send link ===== */
+        .send-link-section {
+            margin-bottom: 18px;
+        }
+        .send-link-row {
+            display: flex;
+            gap: 8px;
+        }
+        .send-link-row input {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            letter-spacing: 0;
+            font-size: 13px;
+        }
+
         /* ===== Files list ===== */
         .files-section h3 {
             font-size: 11px;
@@ -351,6 +365,41 @@
         .file-item .hint {
             color: var(--muted);
             font-size: 11px;
+        }
+        .link-item {
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            margin-bottom: 6px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+        .link-item:hover { background: var(--surface-2); }
+        .link-item .url {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            margin-right: 10px;
+        }
+        .link-item .url:hover { text-decoration: underline; }
+        .link-item .copy-link {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        .link-item .copy-link:hover {
+            color: var(--text);
+            border-color: var(--accent);
         }
 
         /* ===== Toast ===== */
@@ -431,10 +480,24 @@
             <div class="peer-info">Connected to <span id="connected-id"></span></div>
         </div>
 
+        <div class="send-link-section" id="send-link-section" style="display: none;">
+            <div class="section-label">Send a link</div>
+            <div class="send-link-row">
+                <input type="text" id="link-input" placeholder="https://..." autocomplete="off" spellcheck="false">
+                <button class="primary" id="send-link-btn">Send</button>
+            </div>
+        </div>
+
         <div class="files-section" id="files-section" style="display: none;">
             <h3>Received files</h3>
             <p>Drag files out to your desktop or another folder</p>
             <div id="file-list"></div>
+        </div>
+
+        <div class="files-section" id="links-section" style="display: none;">
+            <h3>Received links</h3>
+            <p>Click to open in your browser</p>
+            <div id="link-list"></div>
         </div>
     </div>
 

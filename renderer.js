@@ -9,6 +9,11 @@ const dropzone = document.getElementById('dropzone');
 const connectedIdElement = document.getElementById('connected-id');
 const filesSection = document.getElementById('files-section');
 const fileList = document.getElementById('file-list');
+const sendLinkSection = document.getElementById('send-link-section');
+const linkInput = document.getElementById('link-input');
+const sendLinkBtn = document.getElementById('send-link-btn');
+const linksSection = document.getElementById('links-section');
+const linkList = document.getElementById('link-list');
 const versionEl = document.getElementById('app-version');
 const minimizeBtn = document.getElementById('btn-minimize');
 const closeBtn = document.getElementById('btn-close');
@@ -87,17 +92,20 @@ function setupConnection() {
     conn.on('open', () => {
         setStatus('Connected', 'connected');
         dropzone.style.display = 'block';
+        sendLinkSection.style.display = 'block';
         connectedIdElement.textContent = conn.peer;
         connectBtn.disabled = true;
     });
 
     conn.on('data', async (data) => {
         if (data.type === 'file') handleIncomingFile(data.file);
+        else if (data.type === 'link') handleIncomingLink(data.url);
     });
 
     conn.on('close', () => {
         setStatus('Connection closed', 'ready');
         dropzone.style.display = 'none';
+        sendLinkSection.style.display = 'none';
         connectBtn.disabled = false;
         conn = null;
     });
@@ -179,6 +187,62 @@ async function sendFile(file) {
         console.error('Send error', err);
         setStatus(`Error sending ${file.name}`, 'error');
     }
+}
+
+function normalizeUrl(input) {
+    const url = (input || '').trim();
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^[\w.-]+\.\w{2,}/.test(url)) return `https://${url}`;
+    return null;
+}
+
+function sendLink() {
+    if (!conn || !conn.open) {
+        showToast('Not connected');
+        return;
+    }
+    const url = normalizeUrl(linkInput.value);
+    if (!url) {
+        showToast('Enter a valid URL');
+        return;
+    }
+    conn.send({ type: 'link', url });
+    setStatus(`Sent link`, 'connected');
+    showToast('Link sent');
+    linkInput.value = '';
+}
+
+sendLinkBtn.addEventListener('click', sendLink);
+linkInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendLink();
+});
+
+function handleIncomingLink(url) {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
+    linksSection.style.display = 'block';
+
+    const item = document.createElement('div');
+    item.className = 'link-item';
+
+    const a = document.createElement('span');
+    a.className = 'url';
+    a.textContent = url;
+    a.title = url;
+    a.addEventListener('click', () => window.electronAPI.openExternal(url));
+
+    const copy = document.createElement('button');
+    copy.className = 'copy-link';
+    copy.textContent = 'Copy';
+    copy.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied');
+    });
+
+    item.appendChild(a);
+    item.appendChild(copy);
+    linkList.appendChild(item);
+    setStatus('Received link', 'connected');
 }
 
 async function handleIncomingFile(file) {
