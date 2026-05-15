@@ -298,6 +298,14 @@ if (window.electronAPI?.onDeepLink) {
     });
 }
 
+// Surface main-process drag errors so silent failures become visible
+if (window.electronAPI?.onDragError) {
+    window.electronAPI.onDragError((msg) => {
+        console.error('[drag] main reported:', msg);
+        showToast(`Drag failed: ${msg}`, 3000);
+    });
+}
+
 // Auto-update status banner
 if (window.electronAPI?.onUpdateStatus) {
     window.electronAPI.onUpdateStatus((status) => {

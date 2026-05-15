@@ -150,20 +150,48 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+// 16x16 transparent PNG — guaranteed-valid fallback so startDrag never gets an empty icon.
+const FALLBACK_ICON_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFElEQVR42mNkYGD4z0AEYBxVSF+FABRwAQGmAjkrAAAAAElFTkSuQmCC',
+  'base64'
+);
+
 let dragIconCache = null;
 function getDragIcon() {
   if (dragIconCache) return dragIconCache;
-  const img = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
-  dragIconCache = img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 32, height: 32 });
+  try {
+    const buf = fs.readFileSync(path.join(__dirname, 'icon.png'));
+    const img = nativeImage.createFromBuffer(buf);
+    if (!img.isEmpty()) {
+      dragIconCache = img.resize({ width: 32, height: 32 });
+      return dragIconCache;
+    }
+    console.error('[drag] icon loaded but image is empty');
+  } catch (err) {
+    console.error('[drag] failed to read icon.png:', err);
+  }
+  dragIconCache = nativeImage.createFromBuffer(FALLBACK_ICON_PNG);
   return dragIconCache;
 }
 
 ipcMain.on('ondragstart', (event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath || !fs.existsSync(filePath)) return;
-  event.sender.startDrag({
-    file: filePath,
-    icon: getDragIcon()
-  });
+  if (typeof filePath !== 'string' || !filePath) {
+    event.sender.send('drag-error', 'No file path');
+    return;
+  }
+  if (!fs.existsSync(filePath)) {
+    event.sender.send('drag-error', `Temp file missing: ${filePath}`);
+    return;
+  }
+  try {
+    event.sender.startDrag({
+      file: filePath,
+      icon: getDragIcon()
+    });
+  } catch (err) {
+    console.error('[drag] startDrag threw:', err);
+    event.sender.send('drag-error', err?.message || String(err));
+  }
 });
 
 ipcMain.handle('save-temp-file', async (event, fileName, fileData) => {
