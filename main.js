@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -150,10 +150,19 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+let dragIconCache = null;
+function getDragIcon() {
+  if (dragIconCache) return dragIconCache;
+  const img = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
+  dragIconCache = img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 32, height: 32 });
+  return dragIconCache;
+}
+
 ipcMain.on('ondragstart', (event, filePath) => {
+  if (typeof filePath !== 'string' || !filePath || !fs.existsSync(filePath)) return;
   event.sender.startDrag({
     file: filePath,
-    icon: path.join(__dirname, 'icon.png')
+    icon: getDragIcon()
   });
 });
 
