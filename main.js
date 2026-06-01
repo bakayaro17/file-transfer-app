@@ -50,7 +50,7 @@ function sendDeepLinkToRenderer(code) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 500,
-    height: 720,
+    height: 820,
     resizable: false,
     maximizable: false,
     fullscreenable: false,

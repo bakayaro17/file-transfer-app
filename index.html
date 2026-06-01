@@ -293,10 +293,18 @@
             background: var(--surface);
             transition: all 0.15s;
             margin-bottom: 18px;
+            cursor: pointer;
+        }
+        .dropzone:hover {
+            border-color: var(--accent);
+            background: var(--surface-2);
         }
         .dropzone.dragover {
             border-color: var(--accent);
             background: rgba(99, 102, 241, 0.1);
+        }
+        .dropzone #browse-btn {
+            margin-top: 12px;
         }
         .dropzone-icon {
             width: 36px;
@@ -335,6 +343,66 @@
             font-family: 'Segoe UI', -apple-system, sans-serif;
             letter-spacing: 0;
             font-size: 13px;
+        }
+
+        /* ===== Send text ===== */
+        .send-text-section {
+            margin-bottom: 18px;
+        }
+        .send-text-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+        .send-text-row textarea {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            font-size: 13px;
+            outline: none;
+            resize: vertical;
+            min-height: 42px;
+            transition: border 0.15s;
+        }
+        .send-text-row textarea:focus { border-color: var(--accent-strong); }
+        .send-text-row textarea::placeholder { color: var(--muted); }
+        .send-text-row button { align-self: flex-end; }
+
+        .text-item {
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            margin-bottom: 6px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+        .text-item:hover { background: var(--surface-2); }
+        .text-item .text {
+            color: var(--text);
+            flex: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .text-item .copy-text {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 4px 10px;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+        .text-item .copy-text:hover {
+            color: var(--text);
+            border-color: var(--accent);
         }
 
         /* ===== Files list ===== */
@@ -489,15 +557,25 @@
                 <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
             <h3>Drop files here to send</h3>
-            <p>or drag from File Explorer</p>
+            <p>or drag from File Explorer, or browse below</p>
+            <button class="secondary" id="browse-btn">Browse files...</button>
             <div class="peer-info">Connected to <span id="connected-id"></span></div>
         </div>
+        <input type="file" id="file-input" multiple style="display: none;">
 
         <div class="send-link-section" id="send-link-section" style="display: none;">
             <div class="section-label">Send a link</div>
             <div class="send-link-row">
                 <input type="text" id="link-input" placeholder="https://..." autocomplete="off" spellcheck="false">
                 <button class="primary" id="send-link-btn">Send</button>
+            </div>
+        </div>
+
+        <div class="send-text-section" id="send-text-section" style="display: none;">
+            <div class="section-label">Send a text</div>
+            <div class="send-text-row">
+                <textarea id="text-input" placeholder="Type a message..." rows="2" spellcheck="false"></textarea>
+                <button class="primary" id="send-text-btn">Send</button>
             </div>
         </div>
 
@@ -511,6 +589,12 @@
             <h3>Received links</h3>
             <p>Click to open in your browser</p>
             <div id="link-list"></div>
+        </div>
+
+        <div class="files-section" id="texts-section" style="display: none;">
+            <h3>Received text</h3>
+            <p>Click Copy to grab the message</p>
+            <div id="text-list"></div>
         </div>
     </div>
 

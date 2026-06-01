@@ -6,6 +6,8 @@ const connectBtn = document.getElementById('connect-btn');
 const statusElement = document.getElementById('status');
 const statusPill = document.getElementById('status-pill');
 const dropzone = document.getElementById('dropzone');
+const browseBtn = document.getElementById('browse-btn');
+const fileInput = document.getElementById('file-input');
 const connectedIdElement = document.getElementById('connected-id');
 const filesSection = document.getElementById('files-section');
 const fileList = document.getElementById('file-list');
@@ -14,6 +16,11 @@ const linkInput = document.getElementById('link-input');
 const sendLinkBtn = document.getElementById('send-link-btn');
 const linksSection = document.getElementById('links-section');
 const linkList = document.getElementById('link-list');
+const sendTextSection = document.getElementById('send-text-section');
+const textInput = document.getElementById('text-input');
+const sendTextBtn = document.getElementById('send-text-btn');
+const textsSection = document.getElementById('texts-section');
+const textList = document.getElementById('text-list');
 const versionEl = document.getElementById('app-version');
 const minimizeBtn = document.getElementById('btn-minimize');
 const closeBtn = document.getElementById('btn-close');
@@ -93,6 +100,7 @@ function setupConnection() {
         setStatus('Connected', 'connected');
         dropzone.style.display = 'block';
         sendLinkSection.style.display = 'block';
+        sendTextSection.style.display = 'block';
         connectedIdElement.textContent = conn.peer;
         connectBtn.disabled = true;
     });
@@ -100,12 +108,14 @@ function setupConnection() {
     conn.on('data', async (data) => {
         if (data.type === 'file') handleIncomingFile(data.file);
         else if (data.type === 'link') handleIncomingLink(data.url);
+        else if (data.type === 'text') handleIncomingText(data.text);
     });
 
     conn.on('close', () => {
         setStatus('Connection closed', 'ready');
         dropzone.style.display = 'none';
         sendLinkSection.style.display = 'none';
+        sendTextSection.style.display = 'none';
         connectBtn.disabled = false;
         conn = null;
     });
@@ -174,6 +184,28 @@ dropzone.addEventListener('drop', async (e) => {
     for (const f of e.dataTransfer.files) sendFile(f);
 });
 
+// Click the dropzone (or Browse button) to pick files
+dropzone.addEventListener('click', () => {
+    if (!conn || !conn.open) {
+        showToast('Not connected');
+        return;
+    }
+    fileInput.click();
+});
+browseBtn.addEventListener('click', (e) => {
+    // Avoid the dropzone click handler firing a second time
+    e.stopPropagation();
+    if (!conn || !conn.open) {
+        showToast('Not connected');
+        return;
+    }
+    fileInput.click();
+});
+fileInput.addEventListener('change', () => {
+    for (const f of fileInput.files) sendFile(f);
+    fileInput.value = '';
+});
+
 async function sendFile(file) {
     setStatus(`Sending ${file.name}...`, 'connected');
     try {
@@ -217,6 +249,56 @@ sendLinkBtn.addEventListener('click', sendLink);
 linkInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendLink();
 });
+
+function sendText() {
+    if (!conn || !conn.open) {
+        showToast('Not connected');
+        return;
+    }
+    const text = textInput.value.trim();
+    if (!text) {
+        showToast('Enter some text');
+        return;
+    }
+    conn.send({ type: 'text', text });
+    setStatus('Sent text', 'connected');
+    showToast('Text sent');
+    textInput.value = '';
+}
+
+sendTextBtn.addEventListener('click', sendText);
+textInput.addEventListener('keydown', (e) => {
+    // Enter sends; Shift+Enter inserts a newline
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendText();
+    }
+});
+
+function handleIncomingText(text) {
+    if (typeof text !== 'string' || !text) return;
+    textsSection.style.display = 'block';
+
+    const item = document.createElement('div');
+    item.className = 'text-item';
+
+    const span = document.createElement('span');
+    span.className = 'text';
+    span.textContent = text;
+
+    const copy = document.createElement('button');
+    copy.className = 'copy-text';
+    copy.textContent = 'Copy';
+    copy.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(text);
+        showToast('Text copied');
+    });
+
+    item.appendChild(span);
+    item.appendChild(copy);
+    textList.appendChild(item);
+    setStatus('Received text', 'connected');
+}
 
 function handleIncomingLink(url) {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
