@@ -106,7 +106,11 @@ function setupConnection() {
     });
 
     conn.on('data', async (data) => {
-        if (data.type === 'file') handleIncomingFile(data.file);
+        if (data.type === 'file') handleIncomingFile(data.file); // legacy single-message format
+        else if (data.type === 'file-start') handleFileStart(data);
+        else if (data.type === 'file-chunk') handleFileChunk(data);
+        else if (data.type === 'file-end') handleFileEnd(data);
+        else if (data.type === 'file-ack') handleFileAck(data);
         else if (data.type === 'link') handleIncomingLink(data.url);
         else if (data.type === 'text') handleIncomingText(data.text);
     });
@@ -206,19 +210,62 @@ fileInput.addEventListener('change', () => {
     fileInput.value = '';
 });
 
+// Chunked, backpressured file transfer.
+// Sending one giant message floods the WebRTC send buffer; over a high-latency
+// link (e.g. to a remote VPS) that collapses throughput. Instead we slice the
+// file and only keep a bounded amount of data in flight at once.
+const CHUNK_SIZE = 256 * 1024;        // bytes read+sent per chunk
+const BUFFER_HIGH_WATER = 8 * 1024 * 1024;  // pause sending above 8 MB buffered
+const BUFFER_LOW_WATER = 1 * 1024 * 1024;   // resume once drained to 1 MB
+
+let fileSeq = 0;
+const pendingSends = new Map(); // transfer id -> file name (awaiting receiver ack)
+
+// Resolve once the data channel's send buffer has drained below lowWater.
+function waitForDrain(lowWater) {
+    const dc = conn && conn.dataChannel;
+    if (!dc || dc.bufferedAmount <= lowWater) return Promise.resolve();
+    return new Promise((resolve) => {
+        try { dc.bufferedAmountLowThreshold = lowWater; } catch (_) {}
+        const onLow = () => { dc.removeEventListener('bufferedamountlow', onLow); resolve(); };
+        dc.addEventListener('bufferedamountlow', onLow);
+    });
+}
+
 async function sendFile(file) {
-    setStatus(`Sending ${file.name}...`, 'connected');
+    if (!conn || !conn.open) { showToast('Not connected'); return; }
+    const id = `${Date.now()}-${fileSeq++}`;
+    const total = file.size;
+    pendingSends.set(id, file.name);
+    setStatus(`Sending ${file.name}... 0%`, 'connected');
     try {
-        const arrayBuffer = await file.arrayBuffer();
-        conn.send({
-            type: 'file',
-            file: { name: file.name, data: arrayBuffer }
-        });
-        setStatus(`Sent ${file.name}`, 'connected');
+        conn.send({ type: 'file-start', id, name: file.name, size: total });
+        let offset = 0;
+        while (offset < total) {
+            const buf = await file.slice(offset, offset + CHUNK_SIZE).arrayBuffer();
+            conn.send({ type: 'file-chunk', id, data: buf });
+            offset += buf.byteLength;
+            if (conn.dataChannel && conn.dataChannel.bufferedAmount > BUFFER_HIGH_WATER) {
+                await waitForDrain(BUFFER_LOW_WATER);
+            }
+            setStatus(`Sending ${file.name}... ${total ? Math.floor((offset / total) * 100) : 100}%`, 'connected');
+        }
+        conn.send({ type: 'file-end', id });
+        // Don't claim "Sent" yet — wait for the receiver to actually save it (file-ack).
+        setStatus(`Finishing ${file.name}...`, 'connected');
     } catch (err) {
         console.error('Send error', err);
+        pendingSends.delete(id);
         setStatus(`Error sending ${file.name}`, 'error');
     }
+}
+
+function handleFileAck(msg) {
+    const name = pendingSends.get(msg.id);
+    if (!name) return;
+    pendingSends.delete(msg.id);
+    setStatus(`Sent ${name}`, 'connected');
+    showToast(`${name} delivered`);
 }
 
 function normalizeUrl(input) {
@@ -327,28 +374,67 @@ function handleIncomingLink(url) {
     setStatus('Received link', 'connected');
 }
 
+// Save received bytes to a temp file and add a draggable entry to the list.
+async function saveAndListFile(name, data) {
+    const tempPath = await window.electronAPI.saveTempFile(name, data);
+
+    filesSection.style.display = 'block';
+
+    const fileDiv = document.createElement('div');
+    fileDiv.className = 'file-item';
+    fileDiv.draggable = true;
+    fileDiv.innerHTML = `
+        <span class="name">📄 ${name}</span>
+        <span class="hint">drag out</span>
+    `;
+    fileDiv.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        window.electronAPI.startDrag(tempPath);
+    });
+    fileList.appendChild(fileDiv);
+}
+
+// Legacy single-message path (kept so an un-updated sender still works).
 async function handleIncomingFile(file) {
     try {
-        const tempPath = await window.electronAPI.saveTempFile(file.name, file.data);
-
-        filesSection.style.display = 'block';
-
-        const fileDiv = document.createElement('div');
-        fileDiv.className = 'file-item';
-        fileDiv.draggable = true;
-        fileDiv.innerHTML = `
-            <span class="name">📄 ${file.name}</span>
-            <span class="hint">drag out</span>
-        `;
-        fileDiv.addEventListener('dragstart', (e) => {
-            e.preventDefault();
-            window.electronAPI.startDrag(tempPath);
-        });
-        fileList.appendChild(fileDiv);
+        await saveAndListFile(file.name, file.data);
         setStatus(`Received ${file.name}`, 'connected');
     } catch (err) {
         console.error('Receive error', err);
         setStatus(`Error saving ${file.name}`, 'error');
+    }
+}
+
+// Chunked receive: collect chunks per transfer id, then reassemble on file-end.
+const incomingFiles = new Map(); // id -> { name, size, chunks: [], received }
+
+function handleFileStart(meta) {
+    incomingFiles.set(meta.id, { name: meta.name, size: meta.size || 0, chunks: [], received: 0 });
+    setStatus(`Receiving ${meta.name}... 0%`, 'connected');
+}
+
+function handleFileChunk(msg) {
+    const f = incomingFiles.get(msg.id);
+    if (!f) return;
+    f.chunks.push(msg.data);
+    f.received += msg.data.byteLength || 0;
+    if (f.size) {
+        setStatus(`Receiving ${f.name}... ${Math.floor((f.received / f.size) * 100)}%`, 'connected');
+    }
+}
+
+async function handleFileEnd(msg) {
+    const f = incomingFiles.get(msg.id);
+    if (!f) return;
+    incomingFiles.delete(msg.id);
+    try {
+        const buffer = await new Blob(f.chunks).arrayBuffer();
+        await saveAndListFile(f.name, buffer);
+        setStatus(`Received ${f.name}`, 'connected');
+        if (conn && conn.open) conn.send({ type: 'file-ack', id: msg.id });
+    } catch (err) {
+        console.error('Receive error', err);
+        setStatus(`Error saving ${f.name}`, 'error');
     }
 }
 
