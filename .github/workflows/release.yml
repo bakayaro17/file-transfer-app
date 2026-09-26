@@ -15,7 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # macos-latest moved to macOS 26 in Sept 2026 and electron-builder 25's
+        # temporary signing keychain fails to unlock there ("SecKeychainUnlock:
+        # The user name or passphrase you entered is not correct"). Pin the
+        # previous image until electron-builder is upgraded.
+        os: [macos-15, windows-latest]
 
     steps:
       - name: Checkout
@@ -31,7 +35,7 @@ jobs:
         run: npm ci
 
       - name: Build & publish (macOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -42,7 +46,7 @@ jobs:
         run: npm run release:mac
 
       - name: Build & publish (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release:win
