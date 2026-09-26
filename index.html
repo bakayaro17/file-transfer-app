@@ -404,6 +404,111 @@
             color: var(--text);
             border-color: var(--accent);
         }
+        .text-item .text-body {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .text-item .toggle-text {
+            background: transparent;
+            border: 0;
+            color: var(--accent);
+            padding: 0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .text-item .toggle-text:hover { text-decoration: underline; }
+
+        /* ===== Clipboard sync ===== */
+        .clip-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px 12px;
+            margin-bottom: 18px;
+        }
+        .clip-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .clip-head .section-label { margin-bottom: 4px; }
+        .clip-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+        .clip-foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        .clip-status {
+            font-size: 11px;
+            color: var(--muted);
+            flex: 1;
+            min-width: 0;
+            line-height: 1.4;
+        }
+        .clip-status.active { color: #6ee7b7; }
+        .clip-foot button.small {
+            padding: 6px 10px;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .switch input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
+        }
+        .switch .slider {
+            position: absolute;
+            inset: 0;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .switch .slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 2px;
+            top: 2px;
+            background: var(--muted);
+            border-radius: 50%;
+            transition: transform 0.15s, background 0.15s;
+        }
+        .switch input:checked + .slider {
+            background: var(--accent-strong);
+            border-color: var(--accent-strong);
+        }
+        .switch input:checked + .slider::before {
+            transform: translateX(18px);
+            background: white;
+        }
+        .switch input:focus-visible + .slider { box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.5); }
 
         /* ===== Files list ===== */
         .files-section h3 {
@@ -442,11 +547,48 @@
             align-items: center;
             gap: 8px;
             color: var(--text);
+            flex: 1;
+            min-width: 0;
         }
-        .file-item .hint {
+        .file-item .name-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-item .badge {
+            flex-shrink: 0;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 999px;
+            padding: 1px 7px;
+        }
+        .file-item .meta {
             color: var(--muted);
             font-size: 11px;
+            white-space: nowrap;
+            margin-left: 10px;
+            flex-shrink: 0;
         }
+        .file-item .save-btn {
+            margin-left: 10px;
+            flex-shrink: 0;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            -webkit-user-drag: none;
+        }
+        .file-item .save-btn:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        .file-item .save-btn:disabled { opacity: 0.6; cursor: default; }
         .link-item {
             padding: 10px 14px;
             background: var(--surface);
@@ -579,9 +721,26 @@
             </div>
         </div>
 
+        <div class="clip-section" id="clip-section" style="display: none;">
+            <div class="clip-head">
+                <div>
+                    <div class="section-label">Clipboard sync</div>
+                    <div class="clip-desc">Copy files in Explorer or Finder on one device and paste them on the other. Works both ways while connected.</div>
+                </div>
+                <label class="switch" title="Turn clipboard sync on or off">
+                    <input type="checkbox" id="clip-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="clip-foot">
+                <span class="clip-status" id="clip-status">Off</span>
+                <button class="secondary small" id="clip-send-now" title="Send whatever files are on the clipboard right now">Send clipboard now</button>
+            </div>
+        </div>
+
         <div class="files-section" id="files-section" style="display: none;">
             <h3>Received files</h3>
-            <p>Drag files out to your desktop or another folder</p>
+            <p>Drag an item out to a folder, or click Save to choose where it goes</p>
             <div id="file-list"></div>
         </div>
 

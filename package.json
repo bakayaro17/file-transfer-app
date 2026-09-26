@@ -1,6 +1,6 @@
 {
   "name": "file-transfer-app",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Cross-platform peer-to-peer file transfer built with Electron and PeerJS",
   "main": "main.js",
   "repository": {
@@ -12,7 +12,8 @@
     "pack": "electron-builder --dir",
     "release": "electron-builder --win --publish always",
     "release:win": "electron-builder --win --publish always",
-    "release:mac": "electron-builder --mac --publish always"
+    "release:mac": "electron-builder --mac --publish always",
+    "test:e2e": "node test/e2e.js"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +31,7 @@
     "productName": "File Transfer App",
     "files": [
       "main.js",
+      "clipboard-sync.js",
       "preload.js",
       "renderer.js",
       "index.html",
